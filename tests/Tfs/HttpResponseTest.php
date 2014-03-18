@@ -11,6 +11,6 @@ class HttpResponseTest extends \TestCase
     function testGetResult()
     {
         $r = new HttpResponse(201, '{"TFS_FILE_NAME": "abc"}');
-        $this->assertEquals('abc', $r->getResult()->TFS_FILE_NAME);
+        $this->assertEquals('abc', $r->TFS_FILE_NAME);
     }
 }

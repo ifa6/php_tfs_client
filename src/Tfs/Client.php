@@ -22,6 +22,7 @@ namespace Tfs;
 class Client
 {
     private $rootServer = 'restful-store.daily.tbsite.net:3800';
+    private $imageServer = '.daily.taobaocdn.net';
     private $appKey;
     private $appId;
     private $uid = 1;
@@ -30,7 +31,7 @@ class Client
     protected $accessCount = 0;
     protected $servers;
     protected $maxAccessCount;
-    
+
     public function __construct($appKey, $rootServer=null)
     {
         $this->appKey = $appKey;
@@ -38,7 +39,7 @@ class Client
             $this->setRootServer($rootServer);
         }
     }
-    
+
     public function getAppKey()
     {
         return $this->appKey;
@@ -89,6 +90,17 @@ class Client
         return $this;
     }
 
+    public function getImageServer()
+    {
+        return $this->imageServer;
+    }
+
+    public function setImageServer($imageServer)
+    {
+        $this->imageServer = $imageServer;
+        return $this;
+    }
+
     public function getHttpClient()
     {
         if ( !$this->httpClient ) {
@@ -102,10 +114,10 @@ class Client
         $this->httpClient = $httpClient;
         return $this;
     }
-    
+
     /**
      * 获取原生 Tfs 文件
-     * 
+     *
      * @param string $tfsFile
      * @param array $options 可选选项
      *  <ul>
@@ -135,7 +147,7 @@ class Client
             return file_put_contents($localFile, $response->getContent());
         }
     }
-    
+
     /**
      * 写入原生 Tfs 文件
      *
@@ -147,6 +159,9 @@ class Client
      *  <li> large_file
      *  </ul>
      * @return HttpResponse
+     * <code>
+     *  { "TFS_FILE_NAME" : filename }
+     * </code>
      */
     public function save($content, $options=null)
     {
@@ -214,12 +229,29 @@ class Client
      * <li> type 是否强制获取 文件删除或隐藏时无法获取
      * </ul>
      * @return HttpResponse
+     * <code>
+     * { "FILE_NAME": filename, ... }
+     * </code>
+     *
+     * 字段说明：
+     * <ul>
+     * <li> FILE_NAME   : 文件名
+     * <li> BLOCK_ID    : 文件所在的block的id
+     * <li> FILE_ID     : 文件的file id
+     * <li> OFFSET      : 文件在其所在block中的偏移量
+     * <li> SIZE        : 文件大小
+     * <li> OCCUPY_SIZE : 文件真正占用空间
+     * <li> MODIFY_TIME : 文件的最后修改时间
+     * <li> CREATE_TIME : 文件的创建时间
+     * <li> STATUS      : 文件的状态：0 正常；1 已删除；4 隐藏
+     * <li> CRC         : 文件的crc校验码
+     * </ul>
      */
     public function stat($tfsFile, $options=null)
     {
         return $this->getHttpClientWithHeaders()->get($this->buildUrl('metadata/'.$tfsFile, $options));
     }
-    
+
     /**
      * 获取应用 appid
      * @throws RuntimeException
@@ -236,7 +268,14 @@ class Client
 
     /**
      * 创建自定义文件
-     * 
+     *
+     * <code>
+     *  $response = $client->create($file);
+     *  if ( !$response->isOk() ) {
+     *      echo "Failed to create file\n";
+     *  }
+     * </code>
+     *
      * @param string $file
      * @return HttpResponse
      */
@@ -250,7 +289,7 @@ class Client
      *
      * @param string $file tfs 文件名
      * @param string $content 文件内容
-     * @param int $offset 
+     * @param int $offset
      * @return HttpResponse
      */
     public function write($file, $content, $offset=null)
@@ -311,7 +350,7 @@ class Client
             return file_put_contents($localFile, $response->getContent());
         }
     }
-    
+
     /**
      * 删除自定义文件
      * @param string $file
@@ -331,7 +370,7 @@ class Client
     {
         return $this->getHttpClientWithHeaders()->delete($this->buildFileUrl($dir, null, 'dir'));
     }
-    
+
     /**
      * 检查文件是否存在
      * @param string $file
@@ -357,12 +396,26 @@ class Client
     {
         return $this->getHttpClientWithHeaders()->head($this->buildFileUrl($dir, $options, 'dir'));
     }
-    
+
     /**
      * 获取自定义文件信息
      * @param string $file
      * @param array $options
      * @return HttpResponse
+     * <code>
+     * { "NAME": filename, ... }
+     * </code>
+     * 字段说明：
+     * <ul>
+     * <li> NAME        : 文件名（注：和列目录返回的信息不同，这里返回的是绝对路径名）
+     * <li> PID         : 文件的父目录的ID（已作废，均为0）                           
+     * <li> ID          : 文件的ID（已作废，均为0）                                   
+     * <li> SIZE        : 文件的大小                                                  
+     * <li> IS_FILE     : 是否是文件                                                  
+     * <li> CREATE_TIME : 文件的创建时间                                              
+     * <li> MODIFY_TIME : 文件的最后修改时间                                          
+     * <li> VER_NO      : 文件的版本号（已作废，均为0）                               
+     * </ul> 
      */
     public function fileinfo($file, $options=null)
     {
@@ -371,6 +424,14 @@ class Client
 
     /**
      * 获取自定义文件目录信息
+     * <code>
+     * $response = $client->dirinfo($dir);
+     * if ( $response->isOk() ) {
+     *     foreach ( $response->getResult() as $file ) {
+     *         echo "file name: ", $file->NAME, "\n";
+     *     }
+     * }
+     * </code>
      * @param string $dir
      * @param array $options
      * @return HttpResponse
@@ -378,6 +439,19 @@ class Client
     public function dirinfo($dir, $options=null)
     {
         return $this->getHttpClientWithHeaders()->get($this->buildFileUrl($dir, $options, 'dir', true));
+    }
+
+    /**
+     * 获取图片地址
+     * @param string $tfsFile
+     * @param int $size
+     * @return string 图片地址
+     */
+    public function getImageUrl($tfsFile, $size=null)
+    {
+        $server_id = (abs(crc32($tfsFile))%4)+1;
+        return 'http://img'.sprintf('%02d', $server_id).$this->imageServer.'/tfscom/' . $tfsFile
+             . (isset($size) ? "_{$size}x{$size}.jpg" : '');
     }
 
     protected function buildUrl($path, $options=null)
@@ -401,7 +475,7 @@ class Client
         return '/v2/'. $this->appKey . $metadata . '/'. $appId . '/' . $uid . '/' . $type . '/'. ltrim($path, '/')
             . (empty($options) ? '' : '?'.http_build_query($options));
     }
-    
+
     protected function getHttpClientWithHeaders($headers=null, $server=null)
     {
         $client = $this->getHttpClient();
@@ -415,11 +489,11 @@ class Client
             ->setHeaders($headers ? array_merge($headers, $defaultHeaders) : $defaultHeaders);
         return $client;
     }
-    
+
     protected function fetchServers()
     {
         $response = $this->getHttpClientWithHeaders(null, $this->rootServer)
-            ->get('/v1/tfs.list');
+            ->get('/tfs.list');
         if ( $response->isOK() ) {
             $servers = explode("\n", trim($response->getContent()));
             if ( ctype_digit($servers[0]) ) {
@@ -431,7 +505,7 @@ class Client
             throw new \RuntimeException($response->getCode(), $response->getMessage());
         }
     }
-    
+
     protected function getServer()
     {
         if ( !isset($this->servers) || $this->accessCount > $this->maxAccessCount ) {

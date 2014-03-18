@@ -256,4 +256,13 @@ class ClientTest extends \TestCase
         $client = new Client('appkey', 'http://10.232.42.55:3000');
         $this->assertEquals('10.232.42.55:3000', $client->getRootServer());
     }
+
+    function testGetImageUrl()
+    {
+        $client = new Client('appkey');
+        $url = $client->getImageUrl('T1FY4fXchaXXXXXXXX');
+        $this->assertEquals('http://img01.daily.taobaocdn.net/tfscom/T1FY4fXchaXXXXXXXX', $url);
+        $url = $client->getImageUrl('T1FY4fXchaXXXXXXXX', 80);
+        $this->assertEquals('http://img01.daily.taobaocdn.net/tfscom/T1FY4fXchaXXXXXXXX_80x80.jpg', $url);
+    }
 }

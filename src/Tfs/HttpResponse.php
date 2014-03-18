@@ -74,6 +74,12 @@ class HttpResponse
         }
     }
 
+    public function __get($name)
+    {
+        $result = $this->getResult();
+        return isset($result->$name) ? $result->$name : null;
+    }
+    
     public function getStatusCode()
     {
         return $this->statusCode;
